@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kumbha Sahayak</title>
+    <link href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Permanent+Marker&display=swap" rel="stylesheet">
+    <script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
+    <script src="https://maps.googleapis.com/maps/api/js?key={{ google_maps_api_key }}&libraries=visualization&callback=initMap" async defer></script>
+    <style>
+        body {
+            background-color: #1a1a1a;
+            color: #f0f0f0;
+        }
+        .card {
+            background-color: #2c2c2c;
+            border: 1px solid #444;
+        }
+        .card-header {
+            background-color: #333;
+            color: #f0f0f0;
+            border-bottom: 1px solid #444;
+        }
+        .density-normal { border-left: 5px solid #28a745; }
+        .density-high { border-left: 5px solid #ffc107; }
+        .density-critical { border-left: 5px solid #dc3545; }
+        #map {
+            height: 500px;
+            width: 100%;
+            border-radius: 0.25rem;
+        }
+        .main-title {
+            font-family: 'Permanent Marker', cursive;
+            font-size: 5rem;
+            color: orange;
+        }
+        .powered-by {
+            font-family: 'Times New Roman', serif;
+            font-size: 0.9rem;
+            color: lightblue;
+            position: fixed;
+            top: 10px;
+            right: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container-fluid mt-4">
+        <h1 class="text-center mb-4 main-title">Kumbha Sahayak</h1>
+        <h4 class="text-center" style="font-family: 'Times New Roman', serif; color: orange; font-size: 2rem;">श्रद्धा का प्रवाह, सुरक्षा का साहायक</h4>
+        <div class="row">
+            <div class="col-lg-8">
+                <h2>Live Camera Feeds</h2>
+                <div class="row">
+                    {% for i in range(num_streams) %}
+                    <div class="col-md-6 mb-4">
+                        <div class="card" id="stream-card-{{ i }}">
+                            <div class="card-header">Camera {{ i + 1 }}</div>
+                            <img src="{{ url_for('video_feed', stream_id=i) }}" class="card-img-top" alt="Camera {{ i + 1 }} feed">
+                            <div class="card-body">
+                                <h5 class="card-title">Status: <span id="density-level-{{ i }}">Loading...</span></h5>
+                                <p class="card-text" id="density-message-{{ i }}">Fetching latest data...</p>
+                                <p class="card-text">People Detected: <span id="person-count-{{ i }}">0</span></p>
+                                <p class="card-text text-warning" id="suggested-route-{{ i }}"></p>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            <div class="col-lg-4">
+                <h2>Event Overview</h2>
+                <div class="card mb-4">
+                    <div class="card-header">Live Map</div>
+                    <div class="card-body">
+                        <div id="map"></div>
+                    </div>
+                </div>
+                <div class="card">
+                    <div class="card-header">Weather & General Info</div>
+                    <div class="card-body">
+                        <p><strong>Weather:</strong> <span id="weather-description">Loading...</span></p>
+                        <p><strong>Temperature:</strong> <span id="weather-temp">--</span> &deg;C</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let map;
+        let markers = [];
+        let heatmap;
+
+        function initMap() {
+            map = new google.maps.Map(document.getElementById('map'), {
+                center: {lat: {{ 20.0082 }}, lng: {{ 73.7922 }}},
+                zoom: 14,
+                styles: [
+                    {elementType: 'geometry', stylers: [{color: '#242f3e'}]},
+                    {elementType: 'labels.text.stroke', stylers: [{color: '#242f3e'}]},
+                    {elementType: 'labels.text.fill', stylers: [{color: '#746855'}]},
+                    {
+                        featureType: 'administrative.locality',
+                        elementType: 'labels.text.fill',
+                        stylers: [{color: '#d59563'}]
+                    },
+                    {
+                        featureType: 'poi',
+                        elementType: 'labels.text.fill',
+                        stylers: [{color: '#d59563'}]
+                    },
+                    {
+                        featureType: 'poi.park',
+                        elementType: 'geometry',
+                        stylers: [{color: '#263c3f'}]
+                    },
+                    {
+                        featureType: 'poi.park',
+                        elementType: 'labels.text.fill',
+                        stylers: [{color: '#6b9a76'}]
+                    },
+                    {
+                        featureType: 'road',
+                        elementType: 'geometry',
+                        stylers: [{color: '#38414e'}]
+                    },
+                    {
+                        featureType: 'road',
+                        elementType: 'geometry.stroke',
+                        stylers: [{color: '#212a37'}]
+                    },
+                    {
+                        featureType: 'road',
+                        elementType: 'labels.text.fill',
+                        stylers: [{color: '#9ca5b3'}]
+                    },
+                    {
+                        featureType: 'road.highway',
+                        elementType: 'geometry',
+                        stylers: [{color: '#746855'}]
+                    },
+                    {
+                        featureType: 'road.highway',
+                        elementType: 'geometry.stroke',
+                        stylers: [{color: '#1f2835'}]
+                    },
+                    {
+                        featureType: 'road.highway',
+                        elementType: 'labels.text.fill',
+                        stylers: [{color: '#f3d19c'}]
+                    },
+                    {
+                        featureType: 'transit',
+                        elementType: 'geometry',
+                        stylers: [{color: '#2f3948'}]
+                    },
+                    {
+                        featureType: 'transit.station',
+                        elementType: 'labels.text.fill',
+                        stylers: [{color: '#d59563'}]
+                    },
+                    {
+                        featureType: 'water',
+                        elementType: 'geometry',
+                        stylers: [{color: '#17263c'}]
+                    },
+                    {
+                        featureType: 'water',
+                        elementType: 'labels.text.fill',
+                        stylers: [{color: '#515c6d'}]
+                    },
+                    {
+                        featureType: 'water',
+                        elementType: 'labels.text.stroke',
+                        stylers: [{color: '#17263c'}]
+                    }
+                ]
+            });
+
+            heatmap = new google.maps.visualization.HeatmapLayer({
+                data: [],
+                map: map
+            });
+        }
+
+        function updateRealtimeData() {
+            {% for i in range(num_streams) %}
+            $.getJSON(`/realtime_data/{{ i }}`, function(data) {
+                if (data.error) {
+                    console.error(`Error fetching data for stream {{i}}:`, data.error);
+                    return;
+                }
+
+                let densityLevel = data.density_level || 'Normal';
+                let card = $(`#stream-card-{{ i }}`);
+                card.removeClass('density-normal density-high density-critical').addClass('density-' + densityLevel.toLowerCase());
+                
+                $(`#density-level-{{ i }}`).text(densityLevel);
+                $(`#density-message-{{ i }}`).text(data.density_message || 'N/A');
+                $(`#person-count-{{ i }}`).text(data.person_count !== undefined ? data.person_count : 'N/A');
+                $(`#suggested-route-{{ i }}`).text(data.suggested_route || '');
+
+                // Clear existing markers as heatmap will represent density
+                if (markers[{{ i }}]) {
+                    markers[{{ i }}].setMap(null);
+                }
+                // markers[{{ i }}] = new google.maps.Marker({
+                //     position: {lat: data.kumbh_mela_lat, lng: data.kumbh_mela_lng},
+                //     map: map,
+                //     title: `Camera {{ i + 1 }} - ${densityLevel}`
+                // });
+
+                // Update heatmap data
+                let heatmapData = [];
+                if (data.boxes && data.boxes.length > 0) {
+                    // For simplicity, distribute points around the camera's location
+                    // In a real scenario, you'd map bounding boxes to specific lat/lngs
+                    let baseLat = data.kumbh_mela_lat;
+                    let baseLng = data.kumbh_mela_lng;
+                    let latOffset = 0.00005; // Small offset for distribution
+                    let lngOffset = 0.00005;
+
+                    data.boxes.forEach(box => {
+                        // Using a random offset to simulate distribution around the camera
+                        let randomLat = baseLat + (Math.random() - 0.5) * latOffset;
+                        let randomLng = baseLng + (Math.random() - 0.5) * lngOffset;
+                        heatmapData.push(new google.maps.LatLng(randomLat, randomLng));
+                    });
+                }
+                heatmap.setData(heatmapData);
+
+                // Update weather only for the first stream to avoid redundancy
+                if ({{ i }} === 0 && data.weather) {
+                    $('#weather-description').text(data.weather.description || 'N/A');
+                    $('#weather-temp').text(data.weather.temperature || '--');
+                }
+            });
+            {% endfor %}
+        }
+
+        $(document).ready(function() {
+            if ({{ num_streams }} > 0) {
+                setInterval(updateRealtimeData, 2000);
+                updateRealtimeData();
+            } else {
+                // Handle case with no streams
+            }
+        });
+    </script>
+    <div class="powered-by">Powered by Byte Busters</div>
+</body>
+</html>

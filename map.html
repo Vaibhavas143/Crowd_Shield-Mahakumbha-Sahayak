@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Google Maps API Test</title>
+    <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyCvusjvAJpB8vqkcAiP7YYVzs5G7rKvac8"></script>
+    <script>
+      function initMap() {
+        var map = new google.maps.Map(document.getElementById('map'), {
+          center: {lat: -34.397, lng: 150.644},
+          zoom: 8
+        });
+      }
+    </script>
+  </head>
+  <body>
+    <div id="map" style="height: 400px; width: 100%;"></div>
+    <script async defer src="https://maps.googleapis.com/maps/api/js?key=AIzaSyCvusjvAJpB8vqkcAiP7YYVzs5G7rKvac8&callback=initMap">
+    </script>
+  </body>
+</html>
